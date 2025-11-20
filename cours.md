@@ -394,3 +394,68 @@ Puis tu appelles :
 
 if __name__ == "__main__":
     run()
+
+---
+
+dernière étape filemangement
+
+On va faire ça en trois étapes simples :
+
+🧱 Étape 1 — Créer file_management.py
+
+Ce module aura :
+
+move_to_done(file_path)
+
+move_to_error(file_path)
+
+get_orders_file_path(date_str)
+
+une petite utilité : extract_date_from_filename(path)
+
+Mais surtout une fonction centrale :
+
+process_with_error_handling(date, callback)
+
+Sémantique :
+
+tu lui passes une date ("2025-03-07")
+
+tu lui passes une fonction callback(date) qui fait tout le pipeline
+
+si tout va bien → déplace le fichier dans done/
+
+si erreur → déplace le fichier dans error/ et logue
+
+Ce pattern est très solide.
+
+🧱 Étape 2 — Modifier process_date() dans orchestrator.py
+
+Il va devenir :
+
+lire le fichier JSON
+
+faire les transformations
+
+écrire le CSV
+
+Mais entouré par un try/except
+→ s’il y a une erreur, file_management gère où mettre le fichier
+
+🧱 Étape 3 — Le pipeline DOIT continuer même si un fichier plante
+
+Dans run_pipeline_for_dates, on va faire :
+
+for date in dates:
+    try:
+        process_date(...)
+        move_to_done(...)
+    except Exception as e:
+        move_to_error(...)
+        log error
+        continue  # VERY IMPORTANT: ne pas stopper le pipeline
+
+
+C’est le comportement d’un vrai orchestrateur.
+
+🎯 Maintenant le code : notebooks/pipeline/file_management.py
