@@ -9,6 +9,23 @@ ___
 ___
 ___
 
+# Sommaire
+
+- [📘 Introduction](#-introduction)
+- [🧭 1. Architecture générale d'un pipeline Spark](#-1-architecture-générale-dun-pipeline-spark)
+- [📂 2. Organisation type d'un projet Spark](#-2-organisation-type-dun-projet-spark)
+- [⚙️ 3. config.py — La configuration centrale](#️-3-configpy--la-configuration-centrale)
+- [🔥 4. spark_session.py — Créer la SparkSession proprement](#-4-spark_sessionpy--créer-la-sparksession-proprement)
+- [📥 5. io_readers.py — Lecture des données](#-5-io_readerspy--lecture-des-données)
+- [🔧 6. transformations.py — Les règles métier](#-6-transformationspy--les-règles-métier)
+- [📊 7. aggregations.py — Calcul des métriques finales](#-7-aggregationspy--calcul-des-métriques-finales)
+- [📤 8. writers.py — Générer les CSV quotidiens](#-8-writerspy--générer-les-csv-quotidiens)
+- [🧵 9. orchestrator.py — Le chef d'orchestre](#-9-orchestratorpy--le-chef-dorchestre)
+- [🚚 10. file_management.py — Gestion done/error](#-10-file_managementpy--gestion-doneerror)
+- [🧪 11. Spark UI — Comprendre l'exécution](#-11-spark-ui--comprendre-lexécution)
+- [🧠 12. Pourquoi cette architecture est professionnelle](#-12-pourquoi-cette-architecture-est-professionnelle)
+- [🎓 Conclusion : Ce que tu maîtrises maintenant](#-conclusion--ce-que-tu-maîtrises-maintenant)
+
 ## 📘 Introduction
 
 Spark est un moteur de traitement distribué conçu pour manipuler de très grands volumes de données.
