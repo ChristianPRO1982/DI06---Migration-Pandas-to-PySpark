@@ -10,6 +10,33 @@ sudo chown -R $USER:$USER notebooks/
 sudo chmod -R 755 notebooks/
 ```
 
+### pour bien démarer N8N
+```
+mkdir -p n8n_data
+mkdir -p n8n_files
+sudo chown -R $USER:$USER n8n_data n8n_files
+```
+
+### SCHEDULING
+**ajout du fichier main.py à la racine de "notebooks"
+```
+# Entry point for running the FreshKart pipeline with spark-submit.
+
+from pipeline.orchestrator import run
+
+
+if __name__ == "__main__":
+    run()
+```
+
+**crontab**
+```
+0 6 * * * cd /chemin/vers/DI06---Migration-Pandas-to-PySpark && docker compose exec -w /home/jovyan/work jupyter /usr/local/spark/bin/spark-submit main.py >> logs/freshkart_pipeline.log 2>&1
+```
+
+Ne pas oublier de créer le dossier `logs` à la racine.
+
+
 ### structure utilisée
 
 ```
