@@ -1,461 +1,270 @@
-🎯 Étape 1 – config.py : pourquoi, comment, rôle dans un pipeline ?
-🔵 Pourquoi un fichier config.py ?
+___
+___
+___
+
+# 🧱 Cours complet : Construire un pipeline Spark propre, modulaire et maintenable
+Version pédagogique pour débutant sérieux (niveau Data Ingé école / Alternance)
+Orienté bonnes pratiques, architecture et compréhension
+___
+___
+___
+
+## 📘 Introduction
 
-Dans un vrai pipeline, on manipule beaucoup de chemins, paramètres, options, noms de fichiers, etc.
+Spark est un moteur de traitement distribué conçu pour manipuler de très grands volumes de données.
+Même si tu t’entraînes avec quelques fichiers CSV/JSON, la bonne pratique consiste déjà à organiser ton projet comme un “vrai” pipeline data.
 
-Sans fichier de config :
+### Dans ce cours tu vas apprendre :
 
-tu dupliques les chemins partout
+* les briques essentielles d’un pipeline Spark
+* comment organiser ton projet en modules clairs
+* comment structurer un flux de données du début à la fin
+* comment traiter plusieurs fichiers de manière robuste
+* comment respecter les normes : PEP8, modularité, clarté, séparation des responsabilités
 
-si tu changes l’arborescence → tu dois tout modifier
+comment Spark pense les données (DataFrame, transformations, actions)
 
-ton orchestrateur devient un gros “spaghetti”
+### L’objectif :
+> 👉 agir comme un bon Data Engineer, même quand tu débutes.
 
-Avec config.py :
+## 🧭 1. Architecture générale d’un pipeline Spark
 
-tous les chemins sont dans un seul endroit
+### Un pipeline Spark se découpe logiquement en **6 grandes zones** :
 
-on sépare logique & configuration
+1. Configuration centrale (config.py)
+2. Création de la SparkSession (spark_session.py)
+3. Lecture des données (io_readers.py)
+4. Transformations métier (transformations.py)
+5. Agrégations (aggregations.py)
+6. Écriture des résultats (writers.py)
+7. Orchestration & gestion des erreurs (orchestrator.py + file_management.py)
 
-modularité → on peut réutiliser les fonctions sans tout casser
+### Cette séparation te garantit :
 
-clarté → chaque module lit dans config
+* du code plus propre
+* de la maintenabilité
+* de la facilité de test
+* un pipeline robuste
+* un code réutilisable dans d’autres projets
 
-C’est un vrai réflexe de data engineer ⭐
+## 📂 2. Organisation type d’un projet Spark
 
-🔵 Où se place config.py ?
+### Voici une structure recommandée :
+```
+notebooks/
+    data/
+        input/
+        done/
+        error/
+        statics/
+            customers.csv
+            refunds.csv
+    output/
+        daily_summary/
+    pipeline/
+        config.py
+        spark_session.py
+        io_readers.py
+        transformations.py
+        aggregations.py
+        writers.py
+        file_management.py
+        orchestrator.py
+```
 
-Tu l’as mis dans :
+### Cette architecture respecte les principes :
 
-notebooks/pipeline/config.py
+* Séparation des responsabilités
+* Modularité
+* Lisibilité
+* Facilité de debug
 
-🔵 Contenu conceptuel du config.py
+## ⚙️ 3. config.py — La configuration centrale
 
-config.py doit définir :
+### Pourquoi ?
 
-1️⃣ Les chemins principaux du projet (relatifs à notebooks/)
+* Centraliser tous les chemins (input, output, error…)
+* Centraliser les formats de date (éviter les hardcodes partout)
+* Centraliser les noms de fichiers (prefix “orders_”, “.json”)
 
-chemin vers le répertoire input (tous les JSON)
+Ce module fait office de table de vérité de ton pipeline.
 
-chemin vers le répertoire done
+### C’est un réflexe professionnel :
+> 👉 toute config unique se trouve à un seul endroit.
 
-chemin vers le répertoire error
+## 🔥 4. spark_session.py — Créer la SparkSession proprement
 
-chemin vers les statiques (customers + refunds)
+La SparkSession est la porte d’entrée de Spark.
 
-chemin vers les outputs CSV
+### Ce module doit :
 
-2️⃣ Les patterns des fichiers
+* créer la session
+* définir son nom (utile dans Spark UI)
+* ajouter quelques options utiles
+* être importé partout, ne jamais être recopié
 
-préfixe des fichiers commandes : "orders_"
+### Pourquoi ?
 
-extension : .json
+* éviter d’avoir 15 SparkSession différentes
+* éviter les bugs de config
+* éviter les incohérences
 
-3️⃣ Les conventions de date
+> Un bon projet Spark = une seule SparkSession bien définie.
 
-format attendu dans les fichiers : %Y-%m-%d
+## 📥 5. io_readers.py — Lecture des données
 
-format pour le CSV en sortie : %Y%m%d
+### Ce module doit savoir :
 
-4️⃣ Optionnel : paramètres de pipeline
+* lire correctement les CSV (statiques)
+* lire correctement les JSON (dynamiques)
+* appliquer multiline=true si ton JSON est sur plusieurs lignes
+* vérifier l’existence des fichiers
+* ne faire que de la lecture (pas de transformation)
 
-activer logs détaillés ?
+### Bonne pratique :
 
-nombre de partitions Spark ?
+> “Read early, transform later.”
 
-encoding CSV ?
+> La lecture n’est PAS le bon moment pour appliquer du business logic.
 
-Pour l’instant tu n’en as pas besoin, mais la place est là si un jour tu veux.
+## 🔧 6. transformations.py — Les règles métier
 
----
+C’est ici que Spark devient intéressant.
 
-Étape 2 = poser proprement la création de la SparkSession dans spark_session.py.
+### Objectif :
 
-1️⃣ Rôle de spark_session.py dans ton pipeline
+> 👉 transformer les DataFrames de manière déclarative, sans les modifier sur place.
 
-En Spark, tout passe par la SparkSession :
+### Les règles du brief deviennent une fonction chacune :
 
-c’est elle qui lit les fichiers (CSV, JSON, Parquet…),
+1. **✔ Filtrer les commandes “paid”**
+"> "Pourquoi ? Garantir la cohérence financière."
+2. **✔ Écarter les clients inactifs via une jointure**
+> Pourquoi ? Seules les commandes de clients actifs comptent.
+3. **✔ Exploser les items (explode)**
+> **Pourquoi ?**
 
-qui applique les transformations,
+> Les commandes sont hiérarchiques (1 commande → plusieurs lignes),
+> mais les agrégations se font au niveau ligne d’article → **d’où explode()**.
 
-qui lance les jobs visibles dans le Spark UI,
+✔ 4. Filtrer les prix négatifs + garder un DF de rejets
+> **Pourquoi ?**
 
-et qui gère la config (nombre de partitions, logs, etc.).
+> Bonne pratique data : ne jamais perdre de données rejetées, toujours tracer.
 
-Bon réflexe data ingé :
-👉 une seule fonction qui crée cette session, dans un module dédié
-👉 tous les autres modules l’utilisent (orchestrator, io_readers, tests dans notebook)
+## 📊 7. aggregations.py — Calcul des métriques finales
 
-Ça évite :
+### Quelques principes Spark importants :
+* **✔ Les agrégations se font toujours *après avoir aplati les structures***
+> (explode des items → groupBy).
+* **✔ Les jointures se font avant l’agrégation**
+> (refunds → join par order_id).
+* **✔ Spark travaille très bien avec les colonnes dérivées**
+> (line_revenue = qty * unit_price).
+* **✔ Les flottants doivent être arrondis à la fin, jamais au milieu**
+> (on minimise les erreurs d’arrondi).
 
-d’avoir des SparkSession.builder... copiés-collés partout,
+### Tu produis alors un DataFrame propre :
+* par date
+* par ville
+* par canal
 
-d’avoir des configs différentes suivant les scripts,
+Avec toutes les métriques financières.
 
-d’oublier un paramètre important à un endroit.
+## 📤 8. writers.py — Générer les CSV quotidiens
 
-2️⃣ Local vs cluster dans ton contexte
+### Rôles :
+* arrondir proprement les montants (2 décimales)
+* écrire un CSV par date
+* utiliser coalesce(1) pour sortir un seul fichier
+* respecter le séparateur ;, demandé par le brief
+* nommer les fichiers daily_summary_YYYYMMDD.csv
 
-Dans ton docker-compose, tu as :
+### Bonne pratique :
+> Le writer formate, il ne transforme pas.
 
-un conteneur spark qui joue le rôle de Spark Master (UI sur 8080)
+> L’agrégation = logique métier.
 
-un conteneur jupyter avec pyspark-notebook où tu codes.
+> L’écriture = présentation.
 
-Mais tu n’as pas de Spark Worker déclaré dans le docker-compose.yml.
+## 🧵 9. orchestrator.py — Le chef d’orchestre
 
-Donc deux options théoriques :
+### Il doit faire :
+1. créer SparkSession
+2. charger customers et refunds
+3. détecter toutes les dates à traiter
+   * extrait les dates depuis les noms de fichiers
+4. traiter les dates une par une
+5. capturer les erreurs date par date
+6. appeler le writer
+7. appeler le file_management
 
-Local mode (ce que tu fais aujourd’hui)
+### Cet orchestrateur te permet d’avoir un pipeline :
+* robuste
+* lisible
+* maintenable
+* évolutif
 
-SparkSession.builder.getOrCreate() sans .master(...)
+Il doit **continuer** même si un fichier plante.
+> C’est la clé d’un bon pipeline.
 
-Spark tourne “en local” dans le conteneur Jupyter.
+## 🚚 10. file_management.py — Gestion done/error
 
-Tu auras une Spark UI sur le port 4040 de ce conteneur (si tu le mappes un jour).
+### Rôles :
+* déplacer un fichier traité vers done/
+* déplacer un fichier échoué vers error/
+* déplacer un fichier dont le nom est invalide (date impossible)
+* garantir qu’aucun fichier ne reste en suspens
 
-Cluster mode (spark://spark:7077)`
+### Bonne pratique data ingé :
+> “Un fichier doit se trouver dans *exactement* une seule zone :
+>> input → done → error.”
 
-il faudrait ajouter au moins un Worker dans ton docker-compose.
+## 🧪 11. Spark UI — Comprendre l’exécution
 
-et configurer .master("spark://spark:7077").
+[L’UI Spark](http://localhost:8080) (8080 ou 4040) te montre :
+* les jobs exécutés
+* les tasks
+* le shuffling
+* le lineage des DataFrames (plan logique et plan physique)
 
-Comme tu ne veux pas partir en usine à gaz, on reste en local mode, ce qui est parfait pour :
+C’est un outil essentiel pour comprendre :
+* pourquoi ton job est lent
+* quelle transformation coûte cher
+* comment Spark réorganise ton code
 
-apprendre les transformations Spark,
+Tu apprends à penser *en transformations logiques*, pas en boucles Python.
 
-avoir un code simple,
+## 🧠 12. Pourquoi cette architecture est professionnelle
 
-et plus tard tu pourras brancher sur un cluster en changeant juste une ligne ici.
+Cette structure respecte :
+* Responsabilité unique (SRP)
+* Séparation logique / physique
+* Fonctions pures pour transformations
+* POO évitée là où elle complique Spark
+* Robustesse (try/except + done/error)
+* Scalabilité (facile à passer cluster)
+* Testabilité
+* Compatibilité CI/CD
 
-3️⃣ Ce qu’on veut exactement dans spark_session.py
+Tu as vraiment les fondations d’un pipeline niveau pro.
 
-Objectif :
+# 🎓 Conclusion : Ce que tu maîtrises maintenant
 
-1 module : notebooks/pipeline/spark_session.py
+Tu sais maintenant :
 
-1 fonction publique : create_spark_session(app_name: str = "FreshKartDailyPipeline")
+* ✔ concevoir un pipeline Spark structuré
+* ✔ isoler les responsabilités
+* ✔ maîtriser l'ordre logique : read → transform → aggregate → write
+* ✔ traiter plusieurs fichiers (dont corrompus !)
+* ✔ comprendre Spark UI
+* ✔ écrire un orchestrateur robuste
+* ✔ sortir un ensemble de CSV propres pour un analyste / une équipe Finance
+* ✔ respecter PEP8, architecture, et patterns pro
 
-centraliser la création de la session
+Tu viens littéralement de construire le **squelette complet d'un pipeline data moderne**, avec des pratiques qu’on retrouve :
+* chez les ESN
+* dans les équipes Data Lake
+* dans les projets d’ingénierie avancés
 
-ajouter 1–2 petits réglages utiles (ex : progression dans la console)
-
-Tu utiliseras ensuite cette fonction :
-
-dans l’orchestrateur,
-
-dans tes notebooks (à la place de celle de freshkart_io à terme).
-
-4️⃣ Code
-
-Remarques :
-
-pas de .master(...) → on reste en local mode pour l’instant, simple et fiable ;
-
-si plus tard tu veux tester le master standalone, tu pourras juste ajouter :
-
-.master("spark://spark:7077")
-
----
-
-étape 3 😎
-Objectif : centraliser toute la lecture des données dans io_readers.py.
-
-🧠 Rappel pédagogique : rôle de io_readers.py
-
-Dans ton pipeline :
-
-spark_session.py → crée la SparkSession
-
-config.py → sait où sont les fichiers
-
-io_readers.py → sait comment les lire avec Spark
-
-Pourquoi c’est utile :
-
-tu sépares la configuration (chemins) de la logique de lecture ;
-
-tous les autres modules (transformations, orchestrator, tests) appellent les mêmes fonctions pour lire les données ;
-
-si tu changes un jour le format (CSV → Parquet, autre chemin…), tu modifies un seul fichier.
-
-Dans ton cas, io_readers.py va :
-
-lire les fichiers statiques :
-
-customers.csv
-
-refunds.csv
-
-lire un fichier JSON de commandes pour une date donnée :
-
-orders_YYYY-MM-DD.json dans data/input
-
-On prépare aussi dès maintenant la gestion des erreurs de type “fichier manquant”, pour que l’orchestrateur puisse décider de mettre le fichier en error/.
-
----
-
-🚀 Étape suivante : transformations.py
-
-Objectif pédagogique de cette étape :
-
-comprendre comment Spark traite les DataFrames comme des tables distribuées
-
-apprendre à appliquer des règles métier de manière fonctionnelle
-
-manipuler les colonnes, filtrer, exploser, joindre, nettoyer
-
-et surtout découvrir comment Spark génère des plans de calcul (visible dans Spark UI)
-
-🎯 Dans cette étape, on va coder 4 transformations :
-1️⃣ Filtrer les commandes payées
-payment_status = 'paid'
-
-2️⃣ Joindre les clients et exclure is_active = false
-
-→ On garde seulement les commandes de clients actifs
-
-3️⃣ Exploser les items
-
-orders_df contient :
-
-items: array<struct<qty, sku, unit_price>>
-
-
-On doit passer de :
-
-{
-  order_id: 123,
-  items: [
-    {"qty": 1, "unit_price": 10},
-    {"qty": 2, "unit_price": 5}
-  ]
-}
-
-
-À :
-
-(order_id, qty=1, unit_price=10)
-(order_id, qty=2, unit_price=5)
-
-4️⃣ Filtrer prix négatifs + renvoyer un DF des lignes rejetées
-
-Les règles métier disent :
-
-si unit_price < 0 → rejeter la ligne
-
-garder trace des rejets
-
----
-
-🎯 Objectif de cette étape (aggregations.py)
-
-À partir de :
-
-clean_items_df (items propres après toutes les transformations),
-
-refunds_df (remboursements bruts),
-
-on veut produire un DataFrame avec les colonnes :
-
-date
-
-city
-
-channel
-
-orders_count
-
-unique_customers
-
-items_sold
-
-gross_revenue_eur
-
-refunds_eur
-
-net_revenue_eur
-
-Le tout agrégé par : date × city × channel.
-
-🧠 Logique métier (en langage humain)
-
-On part de items_df (sortie de filter_negative_prices) qui contient :
-
-order_id, customer_id, channel, created_at, city, sku, qty, unit_price.
-
-On ajoute :
-
-une colonne order_date = to_date(created_at)
-
-une colonne line_revenue_eur = qty * unit_price
-
-On regroupe par commande pour avoir des métriques par order :
-
-items_sold = somme des qty
-
-gross_revenue_eur = somme des line_revenue_eur
-
-on garde customer_id, city, channel, order_date
-
-Côté refunds_df, on agrège les remboursements par order_id :
-
-refunds_eur = somme des montants, en négatif
-
-On joint les deux sur order_id, on remplace les refunds manquants par 0.0.
-
-Enfin, on regroupe par order_date, city, channel pour avoir :
-
-orders_count = countDistinct(order_id)
-
-unique_customers = countDistinct(customer_id)
-
-items_sold = somme des items_sold par commande
-
-gross_revenue_eur = somme
-
-refunds_eur = somme
-
-net_revenue_eur = gross + refunds
-
-Et on renomme order_date → date.
-
----
-
-🎯 Étape suivante — Construire l’ORCHESTRATEUR : plan détaillé
-
-Avant d’écrire la moindre ligne de code, on va définir la structure exacte de orchestrator.py.
-
-Tu dois me dire “OK” avant qu’on code la première brique.
-
-🧱 Structure finale du futur orchestrator.py
-
-Voici ce que tu vas trouver dedans :
-
-1️⃣ Import des modules internes
-
-create_spark_session
-
-read_customers / read_refunds / read_orders_for_date
-
-transformations (4 fonctions)
-
-compute_daily_city_sales
-
-write_daily_summary_csv
-
-file_management (prochain module)
-
-2️⃣ Fonction utilitaire : récupérer la liste des dates à traiter
-
-Option simple :
-
-soit tu passes une liste de dates en paramètre
-
-soit tu listes tous les fichiers JSON du dossier input
-
-on extrait la date depuis le nom :
-orders_2025-03-01.json → 2025-03-01
-
-Comme tu veux un pipeline qui rattrape le retard, c’est parfait.
-
-3️⃣ La fonction principale : run_pipeline_for_dates(dates: list[str])
-
-Pour chaque date :
-
-lire le fichier JSON
-
-appliquer transformations
-
-nettoyer les prix négatifs
-
-calculer les agrégations
-
-écrire le CSV
-
-déplacer le fichier dans done/
-
-ou dans error/ si ça plante
-
-4️⃣ Fonction “run()” globale
-
-Un truc du genre :
-
-def run():
-    spark = create_spark_session()
-    customers_df = read_customers(spark)
-    refunds_df = read_refunds(spark)
-    dates = list_available_dates()
-    run_pipeline_for_dates(spark, customers_df, refunds_df, dates)
-
-
-Puis tu appelles :
-
-if __name__ == "__main__":
-    run()
-
----
-
-dernière étape filemangement
-
-On va faire ça en trois étapes simples :
-
-🧱 Étape 1 — Créer file_management.py
-
-Ce module aura :
-
-move_to_done(file_path)
-
-move_to_error(file_path)
-
-get_orders_file_path(date_str)
-
-une petite utilité : extract_date_from_filename(path)
-
-Mais surtout une fonction centrale :
-
-process_with_error_handling(date, callback)
-
-Sémantique :
-
-tu lui passes une date ("2025-03-07")
-
-tu lui passes une fonction callback(date) qui fait tout le pipeline
-
-si tout va bien → déplace le fichier dans done/
-
-si erreur → déplace le fichier dans error/ et logue
-
-Ce pattern est très solide.
-
-🧱 Étape 2 — Modifier process_date() dans orchestrator.py
-
-Il va devenir :
-
-lire le fichier JSON
-
-faire les transformations
-
-écrire le CSV
-
-Mais entouré par un try/except
-→ s’il y a une erreur, file_management gère où mettre le fichier
-
-🧱 Étape 3 — Le pipeline DOIT continuer même si un fichier plante
-
-Dans run_pipeline_for_dates, on va faire :
-
-for date in dates:
-    try:
-        process_date(...)
-        move_to_done(...)
-    except Exception as e:
-        move_to_error(...)
-        log error
-        continue  # VERY IMPORTANT: ne pas stopper le pipeline
-
-
-C’est le comportement d’un vrai orchestrateur.
-
-🎯 Maintenant le code : notebooks/pipeline/file_management.py
+> **C’est un excellent projet d’école et un très bon début professionnel** 💼🚀
