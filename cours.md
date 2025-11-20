@@ -246,3 +246,151 @@ Les règles métier disent :
 si unit_price < 0 → rejeter la ligne
 
 garder trace des rejets
+
+---
+
+🎯 Objectif de cette étape (aggregations.py)
+
+À partir de :
+
+clean_items_df (items propres après toutes les transformations),
+
+refunds_df (remboursements bruts),
+
+on veut produire un DataFrame avec les colonnes :
+
+date
+
+city
+
+channel
+
+orders_count
+
+unique_customers
+
+items_sold
+
+gross_revenue_eur
+
+refunds_eur
+
+net_revenue_eur
+
+Le tout agrégé par : date × city × channel.
+
+🧠 Logique métier (en langage humain)
+
+On part de items_df (sortie de filter_negative_prices) qui contient :
+
+order_id, customer_id, channel, created_at, city, sku, qty, unit_price.
+
+On ajoute :
+
+une colonne order_date = to_date(created_at)
+
+une colonne line_revenue_eur = qty * unit_price
+
+On regroupe par commande pour avoir des métriques par order :
+
+items_sold = somme des qty
+
+gross_revenue_eur = somme des line_revenue_eur
+
+on garde customer_id, city, channel, order_date
+
+Côté refunds_df, on agrège les remboursements par order_id :
+
+refunds_eur = somme des montants, en négatif
+
+On joint les deux sur order_id, on remplace les refunds manquants par 0.0.
+
+Enfin, on regroupe par order_date, city, channel pour avoir :
+
+orders_count = countDistinct(order_id)
+
+unique_customers = countDistinct(customer_id)
+
+items_sold = somme des items_sold par commande
+
+gross_revenue_eur = somme
+
+refunds_eur = somme
+
+net_revenue_eur = gross + refunds
+
+Et on renomme order_date → date.
+
+---
+
+🎯 Étape suivante — Construire l’ORCHESTRATEUR : plan détaillé
+
+Avant d’écrire la moindre ligne de code, on va définir la structure exacte de orchestrator.py.
+
+Tu dois me dire “OK” avant qu’on code la première brique.
+
+🧱 Structure finale du futur orchestrator.py
+
+Voici ce que tu vas trouver dedans :
+
+1️⃣ Import des modules internes
+
+create_spark_session
+
+read_customers / read_refunds / read_orders_for_date
+
+transformations (4 fonctions)
+
+compute_daily_city_sales
+
+write_daily_summary_csv
+
+file_management (prochain module)
+
+2️⃣ Fonction utilitaire : récupérer la liste des dates à traiter
+
+Option simple :
+
+soit tu passes une liste de dates en paramètre
+
+soit tu listes tous les fichiers JSON du dossier input
+
+on extrait la date depuis le nom :
+orders_2025-03-01.json → 2025-03-01
+
+Comme tu veux un pipeline qui rattrape le retard, c’est parfait.
+
+3️⃣ La fonction principale : run_pipeline_for_dates(dates: list[str])
+
+Pour chaque date :
+
+lire le fichier JSON
+
+appliquer transformations
+
+nettoyer les prix négatifs
+
+calculer les agrégations
+
+écrire le CSV
+
+déplacer le fichier dans done/
+
+ou dans error/ si ça plante
+
+4️⃣ Fonction “run()” globale
+
+Un truc du genre :
+
+def run():
+    spark = create_spark_session()
+    customers_df = read_customers(spark)
+    refunds_df = read_refunds(spark)
+    dates = list_available_dates()
+    run_pipeline_for_dates(spark, customers_df, refunds_df, dates)
+
+
+Puis tu appelles :
+
+if __name__ == "__main__":
+    run()
