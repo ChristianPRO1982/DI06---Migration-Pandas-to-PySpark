@@ -46,7 +46,7 @@ def write_daily_summary_csv(
         .write
         .mode("overwrite")
         .option("header", "true")
-        .option("delimiter", ";")
+        .option("delimiter", ",")
         .csv(str(tmp_dir))
     )
 
