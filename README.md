@@ -4,6 +4,24 @@ Migration Pandas → PySpark &amp; industrialisation
 
 ## pour une bonne installation
 
+### pre-commit
+
+Ce dépôt utilise [pre-commit](https://pre-commit.com/) pour automatiser le formatage, le linting et l'exécution de la suite de tests avant chaque commit. Pour l'installer et activer le hook :
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Une fois installé, les étapes suivantes sont exécutées automatiquement lors d'un `git commit` :
+
+- vérifications génériques (`check-yaml`, espaces fin de ligne, fin de fichier) ;
+- formatage avec **Black** ;
+- organisation des imports avec **isort** (profil Black) ;
+- linting avec **flake8** + **flake8-bugbear** ;
+- exécution de la suite de tests via **pytest**.
+
+
 ### redonner la main au dossier créé par docker
 ```
 sudo chown -R $USER:$USER notebooks/

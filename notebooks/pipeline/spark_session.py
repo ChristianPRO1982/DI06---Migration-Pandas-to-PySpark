@@ -10,8 +10,7 @@ def create_spark_session(app_name: str = "FreshKartDailyPipeline") -> SparkSessi
     Create and return a SparkSession for the FreshKart pipeline.
     """
     spark = (
-        SparkSession.builder
-        .appName(app_name)
+        SparkSession.builder.appName(app_name)
         .config("spark.ui.showConsoleProgress", "true")
         .getOrCreate()
     )

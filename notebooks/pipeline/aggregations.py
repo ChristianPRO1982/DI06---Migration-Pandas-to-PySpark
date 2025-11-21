@@ -3,12 +3,9 @@
 # order items and refunds.
 
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import (
-    col,
-    sum as spark_sum,
-    countDistinct,
-    to_date,
-)
+from pyspark.sql.functions import col, countDistinct
+from pyspark.sql.functions import sum as spark_sum
+from pyspark.sql.functions import to_date
 
 
 def compute_daily_city_sales(
@@ -18,38 +15,27 @@ def compute_daily_city_sales(
     """
     Compute daily aggregates by date, city and channel from clean items and refunds.
     """
-    items_with_date = (
-        items_df
-        .withColumn("order_date", to_date(col("created_at")))
-        .withColumn("line_revenue_eur", col("qty") * col("unit_price"))
+    items_with_date = items_df.withColumn(
+        "order_date", to_date(col("created_at"))
+    ).withColumn("line_revenue_eur", col("qty") * col("unit_price"))
+
+    order_metrics_df = items_with_date.groupBy(
+        "order_date", "city", "channel", "order_id", "customer_id"
+    ).agg(
+        spark_sum("qty").alias("items_sold"),
+        spark_sum("line_revenue_eur").alias("gross_revenue_eur"),
     )
 
-    order_metrics_df = (
-        items_with_date
-        .groupBy("order_date", "city", "channel", "order_id", "customer_id")
-        .agg(
-            spark_sum("qty").alias("items_sold"),
-            spark_sum("line_revenue_eur").alias("gross_revenue_eur"),
-        )
+    refunds_per_order_df = refunds_df.groupBy("order_id").agg(
+        (-spark_sum(col("amount"))).alias("refunds_eur")
     )
 
-    refunds_per_order_df = (
-        refunds_df
-        .groupBy("order_id")
-        .agg(
-            (-spark_sum(col("amount"))).alias("refunds_eur")
-        )
-    )
-
-    order_metrics_with_refunds = (
-        order_metrics_df
-        .join(refunds_per_order_df, on="order_id", how="left")
-        .fillna({"refunds_eur": 0.0})
-    )
+    order_metrics_with_refunds = order_metrics_df.join(
+        refunds_per_order_df, on="order_id", how="left"
+    ).fillna({"refunds_eur": 0.0})
 
     daily_city_sales_df = (
-        order_metrics_with_refunds
-        .groupBy("order_date", "city", "channel")
+        order_metrics_with_refunds.groupBy("order_date", "city", "channel")
         .agg(
             countDistinct("order_id").alias("orders_count"),
             countDistinct("customer_id").alias("unique_customers"),
