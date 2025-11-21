@@ -18,12 +18,10 @@ def join_active_customers(orders_df: DataFrame, customers_df: DataFrame) -> Data
     """
     active_customers_df = customers_df.filter(col("is_active") == True)
 
-    joined_df = (
-        orders_df.join(
-            active_customers_df.select("customer_id", "city", "is_active"),
-            on="customer_id",
-            how="inner",
-        )
+    joined_df = orders_df.join(
+        active_customers_df.select("customer_id", "city", "is_active"),
+        on="customer_id",
+        how="inner",
     )
 
     return joined_df

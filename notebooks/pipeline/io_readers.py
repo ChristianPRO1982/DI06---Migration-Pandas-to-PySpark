@@ -4,11 +4,11 @@ from pathlib import Path
 from pyspark.sql import DataFrame, SparkSession
 
 from .config import (
-    STATIC_DIR,
-    INPUT_DIR,
-    ORDERS_PREFIX,
-    ORDERS_EXTENSION,
     DATE_INPUT_FORMAT,
+    INPUT_DIR,
+    ORDERS_EXTENSION,
+    ORDERS_PREFIX,
+    STATIC_DIR,
 )
 
 
@@ -18,10 +18,7 @@ def read_customers(spark: SparkSession) -> DataFrame:
     """
     path = STATIC_DIR / "customers.csv"
     return (
-        spark.read
-        .option("header", "true")
-        .option("inferSchema", "true")
-        .csv(str(path))
+        spark.read.option("header", "true").option("inferSchema", "true").csv(str(path))
     )
 
 
@@ -31,10 +28,7 @@ def read_refunds(spark: SparkSession) -> DataFrame:
     """
     path = STATIC_DIR / "refunds.csv"
     return (
-        spark.read
-        .option("header", "true")
-        .option("inferSchema", "true")
-        .csv(str(path))
+        spark.read.option("header", "true").option("inferSchema", "true").csv(str(path))
     )
 
 
@@ -43,7 +37,9 @@ def build_orders_file_path(date_str: str) -> Path:
     Build the full path to a daily orders JSON file from a date string.
     """
     date_obj = datetime.strptime(date_str, DATE_INPUT_FORMAT)
-    filename = f"{ORDERS_PREFIX}{date_obj.strftime(DATE_INPUT_FORMAT)}{ORDERS_EXTENSION}"
+    filename = (
+        f"{ORDERS_PREFIX}{date_obj.strftime(DATE_INPUT_FORMAT)}{ORDERS_EXTENSION}"
+    )
     return INPUT_DIR / filename
 
 
@@ -56,8 +52,4 @@ def read_orders_for_date(spark: SparkSession, date_str: str) -> DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Orders file not found for date {date_str}: {path}")
 
-    return (
-        spark.read
-        .option("multiline", "true")
-        .json(str(path))
-    )
+    return spark.read.option("multiline", "true").json(str(path))

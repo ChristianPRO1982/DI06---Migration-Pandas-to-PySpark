@@ -3,10 +3,10 @@
 # It allows the pipeline to continue even if a specific file fails.
 
 
-from pathlib import Path
 import shutil
+from pathlib import Path
 
-from .config import INPUT_DIR, DONE_DIR, ERROR_DIR, ORDERS_PREFIX, ORDERS_EXTENSION
+from .config import DONE_DIR, ERROR_DIR, INPUT_DIR, ORDERS_EXTENSION, ORDERS_PREFIX
 
 
 def build_input_file_path(date_str: str) -> Path:

@@ -2,14 +2,15 @@
 # It is responsible for turning Spark DataFrames into stable, readable
 # artefacts for downstream consumers (CSV files, etc.).
 
+import shutil
 from datetime import datetime
 from pathlib import Path
-import shutil
 
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, round as spark_round
+from pyspark.sql.functions import col
+from pyspark.sql.functions import round as spark_round
 
-from .config import OUTPUT_DIR, DATE_INPUT_FORMAT, DATE_OUTPUT_FORMAT
+from .config import DATE_INPUT_FORMAT, DATE_OUTPUT_FORMAT, OUTPUT_DIR
 
 
 def write_daily_summary_csv(
@@ -29,8 +30,9 @@ def write_daily_summary_csv(
     filtered_df = daily_city_sales_df.filter(col("date") == date_str)
 
     rounded_df = (
-        filtered_df
-        .withColumn("gross_revenue_eur", spark_round(col("gross_revenue_eur"), 2))
+        filtered_df.withColumn(
+            "gross_revenue_eur", spark_round(col("gross_revenue_eur"), 2)
+        )
         .withColumn("refunds_eur", spark_round(col("refunds_eur"), 2))
         .withColumn("net_revenue_eur", spark_round(col("net_revenue_eur"), 2))
     )
@@ -41,10 +43,8 @@ def write_daily_summary_csv(
         shutil.rmtree(tmp_dir)
 
     (
-        rounded_df
-        .coalesce(1)
-        .write
-        .mode("overwrite")
+        rounded_df.coalesce(1)
+        .write.mode("overwrite")
         .option("header", "true")
         .option("delimiter", ",")
         .csv(str(tmp_dir))
